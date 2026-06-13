@@ -1,20 +1,17 @@
-# Agent Linear GitHub Test
+# Rachel's Linear Sync
 
-Test repo for the `agent-linear-github` skill MVP.
+This repo mirrors Linear issues from the FeedMob workspace as GitHub issues.
+Progress comments are synced to both platforms by the [Ticket Pilot](https://github.com/RachelXiaolan/ticket-pilot) skill.
 
-## Purpose
+## How it works
 
-This repo is used to validate the Linear ↔ GitHub sync workflow:
-- Linear issues trigger GitHub branches
-- Work is tracked via Linear comments
-- PRs link back to Linear issues
+- Each Linear issue (e.g. `AI-2090`) gets a corresponding GitHub issue here
+- Progress comments are posted to both Linear and GitHub
+- Linear is the source of truth for status, priority, assignee, and labels
+- GitHub issues keep GitHub-only team members in the loop
 
-## Structure
+## Linked issues
 
-```
-tasks/
-  <ISSUE-ID>/
-    task.json
-    notes.md
-    logs/
-```
+| Linear | GitHub | Title |
+|--------|--------|-------|
+| [AI-2090](https://linear.app/feedmob/issue/AI-2090) | [#2](https://github.com/RachelXiaolan/rachel-linear-sync/issues/2) | Ticket Pilot — Linear issue 自动同步更新的标准化 skill |
