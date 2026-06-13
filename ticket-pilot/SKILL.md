@@ -206,18 +206,64 @@ Summary: **Default to the user, ask when uncertain.**
 
 ## During Work
 
-Leave comments at every meaningful boundary. Do not save everything for one final update.
-**Each comment goes to both Linear and the linked GitHub issue.**
+### Comment principles
 
-**Required comment points:**
+Comments are **phase-based, not prompt-based**. The agent should:
 
-| Point | Content |
-|------|---------|
-| **Start** | "Starting work", repo/branch, scope, first step |
-| **Key node** | tests pass/fail, deploy attempt, external blocker, decision made |
-| **Failure** | observed error, log source, retry count, next step |
-| **Stop** | exact UI or human action needed |
-| **Completion** | PR/commit links, verification, remaining risks |
+1. **Analyze the task flow** — identify natural phases/parts in the work. Multiple steps that
+   belong to the same phase (e.g. "research phase", "implementation phase") should be
+   summarized in **one comment** when the phase completes, not commented step-by-step.
+
+2. **Comment at phase boundaries** — when one logical chunk of work is done, post a concise
+   update. Don't post a comment for every single interaction.
+
+3. **Be concise** — each comment should be short and scannable. No walls of text.
+
+### Required in every comment
+
+Every comment MUST include:
+
+- **Who**: which agent/person did this (e.g. "Hermes agent", "Codex", or the user's name)
+- **What happened**: brief summary of what was accomplished in this phase
+- **Key outputs**: links to tangible results — repo, branch, published page, PR, document, etc.
+  If there are no tangible outputs this phase, say what the next step is instead.
+
+### Comment triggers
+
+Post a comment when:
+
+| Trigger | Example |
+|---------|---------|
+| **Phase complete** | "Research done — identified 3 options" |
+| **Key output produced** | "Published: https://..." / "PR opened: #12" |
+| **Blocked / needs human** | "Blocked: need API access, @user please check" |
+| **Task complete** | "Done — PR merged, verification passed" |
+
+Do NOT post a comment for every prompt. If the user sends 5 messages that are all part of
+"writing the report", post ONE comment when the report is done.
+
+### Example comment
+
+```
+Hermes agent — Phase 2: Implementation complete
+
+- Built the sync_comment.py script
+- Committed to branch linear/ai-2090-ticket-pilot-skill (commit 37c1b92)
+- Repo: https://github.com/RachelXiaolan/ticket-pilot/tree/linear/ai-2090-ticket-pilot-skill
+Next: open PR and move to In Review
+```
+
+Note how it's short, says who did it, what was done, links the key output, and says what's next.
+
+### Customization
+
+The exact format is not locked down. Users should feel free to adjust:
+- Language (Chinese / English / mixed)
+- Level of detail
+- Emoji usage
+- Whether to include timestamps, commit hashes, etc.
+
+The skill provides the baseline; the user defines their preferred style.
 
 ## Comment Sync (Linear ↔ GitHub Issue)
 
