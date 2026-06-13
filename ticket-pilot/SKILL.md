@@ -127,31 +127,53 @@ If the file is missing, incomplete, or the user asks to change defaults, run onb
 
 Read `references/onboarding-settings.md` for the exact settings format and revalidation rules.
 
+## Label & Assignee Rules
+
+When creating or updating Linear issues, always apply labels and assignees explicitly:
+
+- **Default assignee = current user** (from `settings.md`). Auto-assign to the user unless they say otherwise.
+- **Default label = user's personal label** (e.g. `Rachel`). Always attach the user's label to their own issues.
+- **If the issue involves other teammates** — ask the user which labels and assignees to add. Do not guess.
+- **If the issue is ambiguous** (could belong to multiple people) — ask one concise question rather than auto-assigning.
+- **Never remove or change someone else's label/assignee** without asking.
+
+Summary: **Default to the user, ask when uncertain.**
+
 ## Start Workflow
 
 1. **Resolve the target Linear issue** from the user request.
-   - Accept issue IDs like `AI-1972`, Linear URLs, or a query like "my current issue".
+   - Accept issue IDs like `AI-2090`, Linear URLs, or a query like "my current issue".
    - Read the issue: title, description, status, assignee, team, project, labels,
      comments, and linked PRs.
    - Read team workflow states before changing anything.
 
 2. **Confirm ownership and scope.**
+   - Apply Label & Assignee Rules (above).
    - If unassigned and the user wants it, assign it.
    - If another human owns it, ask before reassigning.
    - If ambiguous, ask one concise question.
 
-3. **Create a GitHub work context.**
+3. **Create a linked GitHub issue** (if one doesn't exist yet).
+   - Use the same title (with Linear ID prefix, e.g. `AI-2090: <title>`).
+   - Body must include the Linear issue URL and a summary.
+   - This GitHub issue mirrors progress comments from Linear (see "Comment Sync" below).
+   - GitHub issues **cannot** track status (In Progress etc.) or priority — Linear is
+     the source of truth for those. Do not try to manage status/priority on GitHub.
+   - Link the GitHub issue number back to Linear via a comment.
+
+4. **Create a GitHub work context.**
    - Use or create a repository selected by the user or inferred from settings/issue links.
    - Create or switch to a branch named `linear/<issue-id>-<short-slug>`.
    - Optionally create a task artifact folder with `scripts/init_task_record.py`.
 
-4. **Mark work started.**
+5. **Mark work started.**
    - Move the Linear issue to "In Progress" (or team equivalent).
-   - Leave a Linear comment with branch/repo, scope, and first planned step.
+   - Leave a **comment on both Linear and GitHub issue** with branch/repo, scope, and first planned step.
 
 ## During Work
 
-Leave Linear comments at every meaningful boundary. Do not save everything for one final update.
+Leave comments at every meaningful boundary. Do not save everything for one final update.
+**Each comment goes to both Linear and the linked GitHub issue.**
 
 **Required comment points:**
 
@@ -162,6 +184,40 @@ Leave Linear comments at every meaningful boundary. Do not save everything for o
 | **Failure** | observed error, log source, retry count, next step |
 | **Stop** | exact UI or human action needed |
 | **Completion** | PR/commit links, verification, remaining risks |
+
+## Comment Sync (Linear ↔ GitHub Issue)
+
+Every Linear progress comment must be **mirrored to the linked GitHub issue**. This keeps
+both platforms in sync for team members who check either one.
+
+**Linear → GitHub comment mirroring:**
+
+```bash
+# After posting a comment to Linear, also post to the GitHub issue
+# Linear comment includes: progress text + GitHub links
+# GitHub comment includes: same progress text + Linear issue link
+
+gh issue comment <GH_ISSUE_NUMBER> \
+  --repo "$OWNER/$REPO" \
+  --body "🚀 **Starting work**
+
+- Branch: \`linear/ai-2090-ticket-pilot-skill\`
+- Linear: https://linear.app/feedmob/issue/AI-2090
+- Scope: MVP workflow validation
+
+Next: create branch, commit skill files, open PR."
+```
+
+**What GitHub issues CAN mirror:**
+- Comments / progress updates ✓
+- Links to commits, branches, PRs ✓
+- Labels (can use GitHub labels for basic categorization) ✓
+
+**What GitHub issues CANNOT mirror (Linear is source of truth):**
+- Workflow status (Backlog → In Progress → In Review → Done) — GitHub has no equivalent
+- Priority levels — GitHub has no built-in priority field
+- Team/project association — GitHub has no team/project equivalent
+- Assignee changes — sync Linear assignee as primary; GitHub assignee optional
 
 ### Linear Comment (use `linear` skill CLI helper)
 
@@ -201,8 +257,15 @@ Read `references/state-model.md` for status mapping and custom team states.
 
 ## GitHub Sync
 
-GitHub holds durable artifacts Linear cannot hold well:
+GitHub plays two roles in this workflow:
 
+### 1. GitHub Issue (progress mirror)
+- Created alongside each Linear issue
+- Mirrors all progress comments from Linear
+- GitHub issue **cannot** track status/priority — that stays on Linear
+- Keeps GitHub-only team members in the loop
+
+### 2. GitHub Artifacts (durable storage)
 - code and config changes
 - generated files for deployment
 - task notes and decision logs
@@ -297,10 +360,50 @@ fi
 
 When `AUTH="none"`, offer both paths and let the user choose — do not force one method.
 
+## Team Naming Conventions
+
+When creating issues, always follow the target team's existing naming pattern. Before creating your first issue on a team, query recent issues to learn the pattern.
+
+FeedMob ken-team (AI) pattern (discovered 2026-06-13):
+
+```text
+#YYYYMMDD-NameN 描述内容
+```
+
+Examples:
+- `#20260613-RachelLu-1 Ticket Pilot — Linear issue 自动同步更新的标准化 skill`
+- `#20260612-Leo03 YouTube调控，每天发一篇最有价值的`
+- `#20260610-Windy02 要把Rachel Lu 加进来会议说工作情况`
+
+Description body starts with:
+```text
+提出日期: YYYY-MM-DD
+备注: 来源：... Action（... 值日）。
+```
+
+For other teams or workspaces, **always sample 10+ recent issues first** to detect the pattern before creating.
+
+## Full Workflow Checklist
+
+The end-to-end cycle. Each step must complete before the next:
+
+1. **Create Linear issue** (or resolve existing) — follow team naming convention, apply user's label + assignee
+2. **Create linked GitHub issue** — same title with Linear ID, body links back to Linear
+3. **Status → In Progress** — query workflow states first to get stateId
+4. **Start comment** — post to **both** Linear and GitHub issue (repo/branch, scope, first step)
+5. **Create GitHub branch** — `linear/<issue-id>-<slug>` from latest main
+6. **Do work + commit** — include issue ID in commit message
+7. **Key node comment** — post to **both** platforms (commit hash, file list, what's done)
+8. **Push branch + open PR** — draft by default, include Linear issue link in body
+9. **Status → In Review** — Linear only (GitHub has no status)
+10. **Completion comment** — post to **both** platforms (PR URL, verification, remaining steps)
+
+See `references/workflow-template.md` for the full MVP transcript with exact API calls.
+
 ## Resources
 
 - `scripts/init_task_record.py` — create a task artifact folder for a Linear issue.
 - `references/onboarding-settings.md` — first-run onboarding and settings format.
 - `references/state-model.md` — status mapping and comment rules.
 - `references/github-conventions.md` — branch, commit, PR, and task artifact conventions.
-- `references/github-conventions.md` — branch, commit, PR, and task artifact conventions.
+- `references/workflow-template.md` — validated full-cycle MVP workflow with exact API calls.
