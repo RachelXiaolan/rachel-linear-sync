@@ -106,26 +106,59 @@ fi
 
 ## Onboarding
 
-Before running issue work, check for local non-secret settings:
+### When to run onboarding
 
-```text
-~/.ticket-pilot/settings.md
-```
+Run onboarding when:
+- First connecting to a workspace (no `settings.md` exists)
+- The user asks to change defaults
+- Auth fails or workspace/repo context changes
 
-If the file is missing, incomplete, or the user asks to change defaults, run onboarding:
+### First-run setup flow
 
 1. **Verify Linear access.** Test the API key with a `viewer` query. If it fails, ask
    the user to create a new key at https://linear.app/settings/account/security.
+
 2. **Verify GitHub access.** Run `gh auth status` or check `$GITHUB_TOKEN`. If neither
    is available, present both options (gh CLI or PAT) and let the user choose.
-3. **Discover Linear context.** Query the user's workspace, teams, workflow states,
-   projects, and labels with read-only calls.
-4. **Confirm defaults with the user.** Show discovered values and ask for confirmation
-   on: workspace, default team, user identity, status mapping, GitHub owner/org,
-   default repo or repo policy, branch naming, and comment cadence.
-5. **Save only non-secret defaults** to `settings.md`. Never save tokens, keys, or secrets.
+
+3. **Auto-discover workspace context.** Query all of the following in read-only mode:
+   - Teams (`teams { nodes { id name key } }`)
+   - Projects (`projects(first: 50) { nodes { id name teams { nodes { key } } } }`)
+   - Labels (`issueLabels(first: 50) { nodes { id name color } }`)
+   - Workflow states for each team
+   - Users / potential assignees (`users { nodes { id name email active } }`)
+
+4. **Let user choose defaults.** Present the discovered options and let the user select:
+
+   | Setting | How to present |
+   |---------|---------------|
+   | **Default team** | List all teams, ask user to pick one |
+   | **Default project** | List projects in the selected team, ask user to pick (or "none") |
+   | **Default label(s)** | List all labels, ask user to pick their personal label(s) |
+   | **Default assignee** | Default to the current user; ask if they want to add others |
+
+5. **Confirm and save.** Show a summary of all selected defaults, get user confirmation,
+   then write to `settings.md`. Include this note to the user:
+
+   > 💡 These defaults will be used automatically when creating new issues.
+   > To override any default for a specific issue, just specify it when creating
+   > (e.g. "create an issue in team SBY", "assign to Yongcheng", "add label Leo").
+
+6. **Save only non-secret defaults** to `settings.md`. Never save tokens, keys, or secrets.
 
 Read `references/onboarding-settings.md` for the exact settings format and revalidation rules.
+
+### Default resolution at issue creation
+
+When creating a Linear issue, resolve each field in this order:
+
+1. **User-specified value** (if the user said "team SBY" or "assign to Leo") — use it.
+2. **Saved default** (from `settings.md`) — use it silently.
+3. **No default and user didn't specify** — ask the user.
+
+Always show the resolved values before creating (e.g. "Creating in team **ken-team**,
+assigned to **Rachel**, labeled **Rachel**. Correct?"). Give the user a chance to
+override before confirming.
 
 ## Label & Assignee Rules
 
@@ -190,22 +223,18 @@ Leave comments at every meaningful boundary. Do not save everything for one fina
 Every Linear progress comment must be **mirrored to the linked GitHub issue**. This keeps
 both platforms in sync for team members who check either one.
 
-**Linear → GitHub comment mirroring:**
+**Use `scripts/sync_comment.py` to post to both platforms in one call:**
 
 ```bash
-# After posting a comment to Linear, also post to the GitHub issue
-# Linear comment includes: progress text + GitHub links
-# GitHub comment includes: same progress text + Linear issue link
-
-gh issue comment <GH_ISSUE_NUMBER> \
-  --repo "$OWNER/$REPO" \
-  --body "🚀 **Starting work**
-
-- Branch: \`linear/ai-2090-ticket-pilot-skill\`
-- Linear: https://linear.app/feedmob/issue/AI-2090
-- Scope: MVP workflow validation
-
-Next: create branch, commit skill files, open PR."
+python3 scripts/sync_comment.py \
+  --linear-id AI-2090 \
+  --gh-issue 2 \
+  --repo RachelXiaolan/ticket-pilot \
+  --emoji 🚀 \
+  --title "Starting work" \
+  --body "Branch: linear/ai-2090-ticket-pilot-skill
+Scope: MVP workflow validation
+Next: create branch, commit skill files, open PR"
 ```
 
 **What GitHub issues CAN mirror:**
@@ -402,8 +431,9 @@ See `references/workflow-template.md` for the full MVP transcript with exact API
 
 ## Resources
 
+- `scripts/sync_comment.py` — post a progress comment to BOTH Linear and GitHub issue in one call.
 - `scripts/init_task_record.py` — create a task artifact folder for a Linear issue.
 - `references/onboarding-settings.md` — first-run onboarding and settings format.
 - `references/state-model.md` — status mapping and comment rules.
 - `references/github-conventions.md` — branch, commit, PR, and task artifact conventions.
-- `references/workflow-template.md` — validated full-cycle MVP workflow with exact API calls.
+- `references/workflow-template.md` — full-cycle workflow with exact API calls (includes bidirectional comment mirroring).

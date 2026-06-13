@@ -48,14 +48,50 @@ result = subprocess.run(
 
 **Pitfall:** If you get `USAGE_LIMIT_EXCEEDED` with `activeIssueCount`, the workspace is at capacity. User must close/archive issues first.
 
-## 2. Status → In Progress + Start Comment
+## 2. Create Linked GitHub Issue + Status → In Progress + Start Comment (BOTH platforms)
+
+Every Linear issue gets a mirror GitHub issue. Comments go to both.
+
+```bash
+# Create GitHub issue mirroring the Linear issue
+gh issue create \
+  --title "AI-2090: <short title>" \
+  --body "## Linear Issue
+https://linear.app/<workspace>/issue/AI-2090
+
+## Summary
+<same description as Linear>
+
+This GitHub issue mirrors progress from Linear AI-2090.
+GitHub cannot track status/priority — Linear is the source of truth."
+
+# Save the GH issue number for comment mirroring below
+GH_ISSUE=2
+```
 
 ```python
-# Move to In Progress (stateId from settings.md)
+# Move Linear to In Progress (stateId from settings.md)
 linear_call('mutation { issueUpdate(id: "AI-2090", input: { stateId: "60920b17-..." }) { success issue { state { name } } } }')
 
-# Start comment
+# Start comment on Linear
 linear_call('mutation { commentCreate(input: { issueId: "AI-2090", body: "🚀 **Starting work**\\n\\n- **Repo**: https://github.com/...\\n- **Branch**: linear/ai-2090-...\\n- **Scope**: ...\\n- **Next**: ..." }) { success } }')
+```
+
+```bash
+# MIRROR same comment to GitHub issue
+gh issue comment $GH_ISSUE \
+  --repo "$OWNER/$REPO" \
+  --body "🚀 **Starting work** *(mirrored from Linear AI-2090)*
+
+- **Branch**: linear/ai-2090-...
+- **Linear**: https://linear.app/.../issue/AI-2090
+- **Scope**: ...
+- **Next**: ..."
+```
+
+```python
+# Link GitHub issue back to Linear
+linear_call('mutation { commentCreate(input: { issueId: "AI-2090", body: "🔗 **GitHub issue created for sync**\\nhttps://github.com/.../issues/2" }) { success } }')
 ```
 
 ## 3. GitHub Branch + Commit + Push
@@ -71,7 +107,7 @@ git add . && git commit -m "AI-2090 Description of work"
 git push -u origin HEAD
 ```
 
-## 4. Key Node Comment (sync GitHub link to Linear)
+## 4. Key Node Comment (BOTH platforms)
 
 ```python
 body = """✅ **Key node: Work committed**
@@ -81,6 +117,19 @@ body = """✅ **Key node: Work committed**
 **Branch:** https://github.com/.../tree/linear/ai-2090-...
 
 **Next:** open PR → move to In Review"""
+```
+
+```bash
+# MIRROR to GitHub issue
+gh issue comment $GH_ISSUE \
+  --repo "$OWNER/$REPO" \
+  --body "✅ **Key node: Work committed** *(mirrored from Linear AI-2090)*
+
+**Commit:** \`3a80fb9\` — [AI-2090 description](https://github.com/.../commit/HASH)
+**Files:** N files, N lines
+**Branch:** https://github.com/.../tree/linear/ai-2090-...
+
+**Next:** open PR → move to In Review"
 ```
 
 ## 5. Open PR + Status → In Review + Completion Comment
@@ -102,11 +151,23 @@ EOF
 ```
 
 ```python
-# Move to In Review
+# Move to In Review (Linear only — GitHub has no status)
 linear_call('mutation { issueUpdate(id: "AI-2090", input: { stateId: "REVIEW_STATE_UUID" }) { success } }')
 
-# Completion comment with PR URL
+# Completion comment on Linear
 linear_call('mutation { commentCreate(input: { issueId: "AI-2090", body: "🎉 **PR opened — ready for review**\\n\\n**PR:** https://github.com/.../pull/1\\n..." }) { success } }')
+```
+
+```bash
+# MIRROR completion comment to GitHub issue
+gh issue comment $GH_ISSUE \
+  --repo "$OWNER/$REPO" \
+  --body "🎉 **PR opened — ready for review** *(mirrored from Linear AI-2090)*
+
+**PR:** https://github.com/.../pull/1
+**Linear status:** In Review 🟡
+
+**Remaining:** ..."
 ```
 
 ## Comment Cadence Summary
